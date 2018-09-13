@@ -83,3 +83,4 @@ group :development do
   gem 'rack-mini-profiler'
   gem 'capistrano-shoryuken'
 end
+
