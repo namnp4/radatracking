@@ -1,0 +1,10 @@
+%p.title
+  Directly Attached Tags:
+= render partial: 'tagmanager/common/tag_list.html', locals: { tags: tag_importable.tags }
+%br
+%p.title Tag include from:
+- tag_importable.tag_sources.each do |tag_source|
+  %p= "Tag #{tag_source.class} #{tag_source.code}"
+%br
+%p.title All Related Tags:
+= render partial: 'tagmanager/common/tag_list.html', locals: { tags: tag_importable.related_tags }

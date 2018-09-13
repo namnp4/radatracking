@@ -1,0 +1,56 @@
+# pullSecrets:
+#   - name: gitlab-registry-long-lived
+containers:
+  - name: default
+    externalConfig: true
+  # - name: worker
+  #   externalConfig: false
+service:
+  enabled: true
+  ports:
+    - internal: 3000
+      external: 80
+    # - internal: 8088
+    #   external: 8088
+ingress:
+  enabled: true
+  servicePort: 3000
+# istio:
+#   enabled: true
+#   routeRules:
+#     # All traffic come from eros will have 15s timeout
+#     - name: timeout-10s-from-eros
+#       precedence: 1
+#       match:
+#         source:
+#           name: eros
+#       route:
+#         - weight: 100
+#       httpReqTimeout:
+#         simpleTimeout:
+#           timeout: 15s
+  # destinationPolicies:
+  #   # Traffic from this service to jackfruit will on ROUND_ROBIN load blancing algorithm and have configured circuit breaker as bellow
+  #   - name: circuit-breaker-for-jackfruit
+  #     destination:
+  #       name: jackfruit
+  #     loadBalancing:
+  #       name: ROUND_ROBIN
+  #     circuitBreaker:
+  #       simpleCb:
+  #         maxConnections: 100
+  #         httpMaxRequests: 1000
+  #         httpMaxRequestsPerConnection: 10
+  #         httpConsecutiveErrors: 7
+  #         sleepWindow: 15m
+  #         httpDetectionInterval: 5m
+  # egressRules:
+  #   # Allow this service to call giaohangnhanh.vn on http protocol (also https)
+  #   - name: allow-to-giaohangnhanh-vn
+  #     destination:
+  #       service: giaohangnhanh-vn
+  #     ports:
+  #       - port: 80
+  #         protocol: http
+  #       - port: 443
+  #         protocol: https

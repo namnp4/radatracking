@@ -1,0 +1,144 @@
+image: registry.edumall.io/sys/reza-image:new_namespace
+
+variables:
+  PUBLIC_DOMAIN: edumall.io
+
+before_script:
+  - source reza-env
+
+stages:
+  - build
+  # - test
+  - package
+  # - review
+  - staging
+  # - canary
+  - production
+  - cleanup
+
+build:
+  stage: build
+  script:
+    - build_image
+    # - sed -i "s;IMAGE_TAG;${CI_REGISTRY_TAG};g" $(pwd)/Dockerfile.sidekiq
+    # - build_image worker -f Dockerfile.sidekiq .
+  only:
+    - branches
+
+# test:
+#   stage: test
+#   script:
+#     - docker run -i --rm -d --name "mongo-$CI_JOB_ID" mongo:latest
+#     - docker run -i --rm --env-file .env.test --env MONGO_HOST=mongo:27017 --link mongo-$CI_JOB_ID:mongo --name "web-test-$CI_JOB_ID" $CI_REGISTRY_IMAGE_WEB:$CI_REGISTRY_TAG" /bin/sh -c "rake seed && rake test"
+#     - docker stop -f "mongo-$CI_JOB_ID"
+#   only: branches
+
+package:
+  stage: package
+  script:
+    - registry_login
+    - push_image
+    # - push_image worker
+  only:
+    - branches
+
+# review:
+#   stage: review
+#   script:
+#     - deploy review 1
+#   environment:
+#     name: review/$CI_COMMIT_REF_NAME
+#     url: http://$CI_PROJECT_PATH_SLUG-$CI_ENVIRONMENT_SLUG.$PUBLIC_DOMAIN
+#     on_stop: stop_review
+#   only:
+#     - branches
+#   except:
+#     - master
+#     - develop
+#     - /^release-.*$/
+#     - /^hotfix-.*$/
+
+# stop_review:
+#   stage: cleanup
+#   variables:
+#     GIT_STRATEGY: none
+#   script:
+#     - delete review
+#   environment:
+#     name: review/$CI_COMMIT_REF_NAME
+#     action: stop
+#   when: manual
+#   only:
+#     - branches
+#   except:
+#     - master
+#     - develop
+#     - /^release-.*$/
+#     - /^hotfix-.*$/
+
+staging:
+  stage: staging
+  script:
+    - deploy staging 1
+  environment:
+    name: staging
+    url: http://$CI_PROJECT_NAME-staging.$PUBLIC_DOMAIN
+    on_stop: stop_staging
+  only:
+    - develop@tcs/rada_reporter
+
+stop_staging:
+  stage: cleanup
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - delete staging
+  environment:
+    name: staging
+    action: stop
+  when: manual
+  only:
+    - develop@tcs/rada_reporter
+
+# canary:
+#   stage: canary
+#   script:
+#     - deploy canary 1
+#   environment:
+#     name: canary
+#     url: http://$CI_PROJECT_NAME.$PUBLIC_DOMAIN
+#   only:
+#     - master@tcs/rada_reporter
+
+# stop_canary:
+#   stage: cleanup
+#   variables:
+#     GIT_STRATEGY: none
+#   script:
+#     - delete canary
+#   environment:
+#     name: canary
+#     action: stop
+#   when: manual
+#   only:
+#     - master@tcs/rada_reporter
+
+production:
+  stage: production
+  script:
+    - deploy production 3
+#    - delete canary
+  environment:
+    name: production
+    url: http://rada-reporter.edumall.io
+  when: manual
+  only:
+    - master@tcs/rada_reporter
+
+cleanup:
+  stage: cleanup
+  script:
+    - remove_image
+    # - remove_image worker -f
+  allow_failure: true
+  when: always

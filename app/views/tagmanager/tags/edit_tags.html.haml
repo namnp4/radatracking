@@ -1,0 +1,9 @@
+%p.title
+  Assigning tags for:
+  = "#{target.class} #{target.code}"
+= form_for target, url: update_path, method: :patch do |form|
+  = form.submit 'Save'
+  .tags
+    = form.label :tags, 'Tags List:'
+    %br
+    = form.collection_check_boxes(:tags, tags, :id, :name, { multiple: true, checked: target.tags&.map(&:id) })

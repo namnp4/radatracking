@@ -1,0 +1,196 @@
+// JWPlayer plugin
+function jwplayer_plugin(_player, _options) {
+  /** Interval for sending progress events. **/
+  var _interval = 15;
+  /** Last time tick **/
+  var _lastTime = -1;
+  /** Page referrer. **/
+  var _referrer = '';
+  /** Start time **/
+  var _startTime = -1;
+  /** Session id **/
+  var _session_id = '';
+  /** First time **/
+  var _first_play = true;
+  /** Referrer **/
+  var _referrer = window.location.href;
+  if (window.top !== window) {
+    _referrer = document.referrer;
+  }
+
+  /** Handle on player setup error. **/
+  _player.onSetupError(_setupErrorHandler);
+
+  /** Initialize the plugin on player ready. **/
+  _player.onReady(function() {
+    _player.onBuffer(_stateHandler);
+    _player.onPlay(_stateHandler);
+    _player.onComplete(_stateHandler);
+    _player.onPause(_stateHandler);
+    _player.onError(_stateHandler);
+    _player.onQualityLevels(_stateHandler);
+    _player.onQualityChange(_stateHandler);
+    _player.onIdle(_idleHandler);
+    _player.onTime(_timeHandler);
+    _session_id = _new_session_id();
+    _first_play = true;
+    _sendPing('ready');
+  });
+
+  /** Handle setup error **/
+  function _setupErrorHandler(event){
+    var query = '?eid=' + 'setup_error';
+    if (_options.uid) query += '&uid=' + _options.uid
+    if (_options.gid) query += '&gid=' + _options.gid
+    query += '&ref=' + encodeURIComponent(_referrer);
+    query += '&ext=' + encodeURIComponent(JSON.stringify(event));
+    _ping(query);
+  }
+
+  /** If moving from idle, the item is started. **/
+  function _stateHandler(event) {
+    // Idle: either playback has not started or playback was stopped (due to a stop() 
+    // call or an error). Either the play or the error icon is visible in the display. 
+    if (event.oldstate === window.jwplayer.events.state.IDLE) {
+      _sendPing('start');
+      _startTime = -1;
+      _lastTime = -1;
+    }
+
+    /** Catch error events **/
+    if (event.type.toLowerCase().indexOf('error') >= 0){
+      _sendPing('error', event);
+      return;
+    }
+    /** Media events **/
+    if (event.type === 'play'){
+      if (_first_play) {
+        _sendPing('play');
+        _first_play = false;
+      } else {
+        _sendPing('resume');
+      }
+    }else{
+      _sendPing(event.type);
+    }
+  }
+
+  /** Only send idle pings if the player indeed stopped. **/
+  function _idleHandler() {
+    if (_startTime > -1) {
+      _sendPing('stop');
+    }
+  }
+
+  /** Send the last playback after a seek. **/
+  function _timeHandler(event) {
+    if (_startTime === -1) {
+      _startTime = _lastTime = event.position;
+    } else if (Math.abs(event.position - _lastTime) > 1) {
+      if (_lastTime - _startTime > 2) {
+        _sendPing('seek');
+      }
+      _startTime = -1;
+      _lastTime = -1;
+    } else if (_lastTime - _startTime > _interval) {
+      _sendPing('progress');
+      _startTime = _lastTime = event.position;
+    } else {
+      _lastTime = event.position;
+    }
+  }
+
+  /** Wrap up the url generation and do the ping. **/
+  function _sendPing(event, error) {
+    var query = '?eid=' + event;
+    query += '&sid=' + _session_id;
+    var item = _player.getPlaylistItem();
+    var mediaid = item.mediaid;
+    var file = item.file;
+    if (!file) {
+      file = item.sources[0].file;
+    }
+    switch (event) {
+      case 'ready':
+        query += '&pid=' + _player.id;
+        query += '&vid=' + mediaid;
+        query += '&ref=' + encodeURIComponent(_referrer);
+        query += '&vrl=' + encodeURIComponent(file);
+        if (_options.uid) query += '&uid=' + _options.uid
+        if (_options.gid) query += '&gid=' + _options.gid
+        query += '&mod=' + _player.getProvider().name;
+        break;
+      case 'start':
+        break;
+      case 'levels':
+        levels = _quality_levels();
+        if (levels){
+          query += '&ext=' + encodeURIComponent(JSON.stringify(levels));
+        }
+        break;
+      case 'play':
+      case 'levelsChanged':
+        qua = _current_quality();
+        if (qua){
+          query += '&qua=' + qua.label;
+          query += '&ext=' + encodeURIComponent(JSON.stringify(qua));
+        }
+        break;
+      case 'progress':
+      case 'seek':
+      case 'stop':
+      case 'buffer':
+      case 'pause':
+      case 'resume':
+      case 'error':
+        query += '&sta=' + Math.round(_startTime * 10) / 10;
+        query += '&dur=' + Math.round((_lastTime - _startTime) * 10) / 10;
+        if (error) query += '&ext=' + encodeURIComponent(JSON.stringify(obj));
+        break;
+    }
+
+    /** Let's ping **/
+    _ping(query);
+  }
+
+  /** Get quality levels **/
+  function _quality_levels(){
+    var levels = _player.getQualityLevels();
+    if (levels){
+      level_labels = [];
+      for (var i=0; i<levels.length; i++)
+        level_labels.push(levels[i].label);
+      return {
+        levels: level_labels
+      }
+    }
+    return null;
+  }
+
+  /** Get current quality **/
+  function _current_quality(){
+    var levels = _player.getQualityLevels();
+    var index = _player.getCurrentQuality();
+    if (levels && index >= 0)
+      return levels[index];
+    return null;
+  }
+
+  /** Ping **/
+  function _ping(query){
+    query += '&r=' + Math.random();
+    if (_options.pixel) {
+      var image = new Image();
+      image.src = _options.pixel + query;
+    } else {
+
+    }
+  }
+
+  /** Generate a playing session id **/
+  function _new_session_id() {
+    var t = new Date().getTime();
+    var r = Math.ceil(Math.random() * Math.pow(10, 11));
+    return t + "-" + r
+  }
+}

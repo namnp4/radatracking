@@ -1,0 +1,76 @@
+var Action_cookie = (function(){
+  function getDomainName(host_name){
+    return host_name.substring(host_name.lastIndexOf(".", host_name.lastIndexOf(".") - 1) + 1);
+  }
+
+  // Set cookie for primary domain
+  // Remove cookie not implement
+  function primaryCookie(key, value, hours) {
+    // console.log(key + "-" + value + "-" + hours)
+    if (arguments.length === 0) {
+    // .data()
+    // no args passed, return all keys/values in an object
+    } else if (typeof key === "string") {
+      // first arg is a string, look at type of second arg
+      if (typeof value !== "undefined") {
+        // .data("key", value)
+        // set the value for a particular key
+        var expires;
+        var domain = getDomainName(window.location.hostname);
+        var date;
+
+        if (hours) {
+          date = new Date();
+          date.setTime(date.getTime() + (hours * 3600000));
+
+          expires = ";expires=" + date.toGMTString();
+        } else {
+          expires = "";
+        }
+
+        document.cookie =
+          encodeURIComponent(key)
+          + "="
+          + encodeURIComponent(value)
+          + expires
+          + ";domain=."
+          + domain
+          + ";path=/";
+
+        return {
+          key: key,
+          value: value,
+          domain: domain,
+          expires: date.toGMTString()
+        };
+      } else {
+      // .data("key")
+      // retrieve a value for a key
+        var keyEQ = encodeURIComponent(key) + "=";
+        var ca = document.cookie.split(';');
+
+        for (var i = 0; i < ca.length; i++) {
+          var c = ca[i];
+
+          while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+
+          if (c.indexOf(keyEQ) === 0) return decodeURIComponent(c.substring(keyEQ.length, c.length));
+        }
+
+        return null;
+      }
+    } else if (typeof key === "object") {
+      // .data(object)
+      // set all key/value pairs from this object
+    } else {
+      // unsupported arguments passed
+    }
+  }
+
+
+
+  return {
+    get_domain:getDomainName,
+    set_cookie: primaryCookie
+  }
+})();

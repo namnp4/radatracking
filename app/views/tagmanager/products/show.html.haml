@@ -1,0 +1,17 @@
+%p.title
+  Product Show Page
+  = "Code: #{@product.code}"
+= render partial: 'product_base.html', locals: { product: @product }
+%br
+%p.title Parent Product:
+- if @product.parent
+  = render partial: 'product_base.html', locals: { product: @product.parent }
+- else
+  %p No Parent
+%br
+%p.title Sub Products:
+= render partial: 'tagmanager/common/product_list.html', locals: { products: @product.subs }
+%p.title Tag Group:
+= render partial: 'tagmanager/common/tag_group_list.html', locals: { tag_groups: @product.tag_groups }
+%br
+= render partial: 'tagmanager/common/related_tags.html', locals: { tag_importable: @product }

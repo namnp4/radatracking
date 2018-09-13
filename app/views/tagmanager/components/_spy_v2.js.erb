@@ -1,0 +1,31 @@
+<% Sprockets::Context.send :load, Rails.root.join('client-api/js/components/_utils.rb') %>
+(function (window, document) {
+  var
+  clv = "js.<%= Constants::JS_LIB_VERSION %>",
+  shake_api = "<%= domain %>/shake",
+  ping_api = "<%= domain %>/ping.gif",
+  vping_api = "<%= domain %>/vping.gif",
+  apn = null,
+  apv = null,
+  uid = null,
+  origin = "<%= domain %>",
+  iframe_src = "<%= domain %>/client-api/js/spyframe.html";
+
+  var
+  setup = function(_apn, _apv, _uid) {
+    apn = _apn;
+    apv = _apv;
+    uid = _uid;
+    iframe_init();
+  },
+  track = function() {
+    // console.log("c");
+  },
+  build_api = function(){
+
+  }
+  window.spy = {
+    setup: function(){return setup()},
+    track: function(){return track()}
+  };
+})(window, document);

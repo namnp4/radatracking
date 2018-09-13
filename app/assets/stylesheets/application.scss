@@ -1,0 +1,12 @@
+/*@charset "UTF-8";
+@import url(https://fonts.googleapis.com/css?family=Roboto:300,400,500,700,700italic,400italic,500italic,900,900italic&subset=latin,latin-ext,vietnamese);
+@import url(https://fonts.googleapis.com/icon?family=Material+Icons);
+@import url(https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,700italic,300,400,700);*/
+@import "tagmanager_v1/bootstrap.min";
+@import "index";
+@import "tagmanager_v1/main";
+@import "tagmanager_v1/loader";
+
+.title {
+  font-weight: bold;
+}

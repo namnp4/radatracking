@@ -1,0 +1,15 @@
+.tag_group
+  %p
+    Code:
+    = tag_group.code
+  %p
+    Created at:
+    = tag_group.created_at
+  %p
+    = link_to 'Show', tagmanager_tag_group_path(tag_group)
+    \-
+    = link_to 'Edit', edit_tagmanager_tag_group_path(tag_group)
+    \-
+    = link_to 'Delete', tagmanager_tag_group_path(tag_group), method: :delete, data: { confirm: 'Are you sure?' }
+    \-
+    = link_to 'Assign tags', tags_edit_tagmanager_tag_group_path(tag_group)
