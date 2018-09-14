@@ -10,8 +10,8 @@ var RadaTracking = (function() {
       url_api: "//tcs-rada-reporter-staging.ingress.v2.cloud.edumall.io/api/tracking/rada_track",
       request_cid: "//tcs-rada-reporter-staging.ingress.v2.cloud.edumall.io/api/tracking/generate_client_id",
     <% elsif Rails.env.production? %>
-      url_api:"//18.222.139.191/api/tracking/rada_track",
-      request_cid:"//18.222.139.191/api/tracking/generate_client_id",
+      url_api:"//tracking.toppick.vn/api/tracking/rada_track",
+      request_cid:"//tracking.toppick.vn/api/tracking/generate_client_id",
     <% end %>
       method: "post"
   }
