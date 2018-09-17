@@ -1,12 +1,14 @@
 class RadaTrack
   include Mongoid::Document
   include Mongoid::Timestamps
+  ## Add relationship with tag
+  belongs_to :tag
   # Version of tracking system
   field :tracker_version, type: String, default: Constants::TRACKER_VERSION
   # Version of tracking client
   field :client_version, type: String
 
-# From where (application, context) ------------------------------------------
+  # From where (application, context) ------------------------------------------
   # Application where behavior occurred (pedia, native, ...)
   field :app_name, type: String
   # Application/API version
