@@ -80,7 +80,7 @@ var RadaTracking = (function() {
     }
     data_send_server.source = JSON.stringify(data_local_storage);
     // data_send_server.time_send = new Date().getTime();
-    $.ajax({
+    jQuery.ajax({
       url: rada_info.url_api,
       type: rada_info.method,
       data: data_send_server,
@@ -104,7 +104,7 @@ var RadaTracking = (function() {
   function generate_client_id(){
     var check_cookie = getValueCookie("rada_tracking");
     if(!check_cookie){
-      $.ajax({
+      jQuery.ajax({
         url: rada_info.request_cid,
         type: "POST",
         data: {action:"request_cid"},
