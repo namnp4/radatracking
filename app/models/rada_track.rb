@@ -2,7 +2,7 @@ class RadaTrack
   include Mongoid::Document
   include Mongoid::Timestamps
   ## Add relationship with tag
-  belongs_to :tag
+#  belongs_to :tag
   # Version of tracking system
   field :tracker_version, type: String, default: Constants::TRACKER_VERSION
   # Version of tracking client
