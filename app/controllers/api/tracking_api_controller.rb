@@ -41,6 +41,7 @@ module Api
       data.each do |d|
         rd = RadaTrack.new
         rd.client_user = d['data']['user']
+        rd.ga_client_id = d['data']['ga_client_id']
         rd.client_version = d['data']['client_version']
         rd.client_os = d['data']['client_os']
         rd.client_browser = d['data']['client_browser']

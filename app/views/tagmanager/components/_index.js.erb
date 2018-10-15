@@ -19,6 +19,7 @@ var RadaTracking = (function() {
     name: <%= "'#{@app_name}'".html_safe %>,
     version: "beta",
     user: jQuery('#rada_uid').val(),
+    ga_client_id: jQuery('#ga_client_id').val(),
   }
   //set expires for cookie is 10h
   var cookie_info = {
@@ -40,6 +41,7 @@ var RadaTracking = (function() {
       client_browser: RadaReporter.get_browser_info().name,
       type_track:"",
       user: app_info.user,
+      ga_client_id: app_info.ga_client_id,
       extras: {},
     }
     return dataTemp;

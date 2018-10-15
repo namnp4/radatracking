@@ -30,6 +30,7 @@ class RadaTrack
   # App user
   field :client_id, type: String
   field :client_user, type: String
+  field :ga_client_id, type: String
   # Page url
   field :url, type: String
   # ID of the unregistered user who caused the event
