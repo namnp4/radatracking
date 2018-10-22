@@ -50,7 +50,6 @@ def renderBindClickExtend(tags)
       end
     end
   end
-  # binding.pry
   return "#{click_tags.to_json}.forEach(bindClickExtend);".html_safe
 end
 

@@ -1,14 +1,12 @@
 class RadaTrack
   include Mongoid::Document
   include Mongoid::Timestamps
-  ## Add relationship with tag
-#  belongs_to :tag
   # Version of tracking system
   field :tracker_version, type: String, default: Constants::TRACKER_VERSION
   # Version of tracking client
   field :client_version, type: String
 
-  # From where (application, context) ------------------------------------------
+# From where (application, context) ------------------------------------------
   # Application where behavior occurred (pedia, native, ...)
   field :app_name, type: String
   # Application/API version
@@ -31,6 +29,7 @@ class RadaTrack
   field :client_id, type: String
   field :client_user, type: String
   field :ga_client_id, type: String
+  field :tracking_session, type: String
   # Page url
   field :url, type: String
   # ID of the unregistered user who caused the event
@@ -41,7 +40,6 @@ class RadaTrack
   # Type of track (payment, login, video, ...)
   field :category, type: String
 # When ------------------------------------------------------------------------
-  field :time_send
   # Behavior
   field :behavior, type: String
   field :value
