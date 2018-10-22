@@ -19,26 +19,24 @@ test:
         max_pool_size: 1
 
 production:
+  # Configure available database clients. (required)
   clients:
     default:
       database: rada_reporter_development
       hosts:
-        -  <%= ENV['MONGO_RADA_REPORTER_HOST_1'] %>
-        -  <%= ENV['MONGO_RADA_REPORTER_HOST_2'] %>
-        -  <%= ENV['MONGO_RADA_REPORTER_HOST_3'] %>
+        - localhost:27017
       options:
-        user: <%= ENV['MONGO_RADA_REPORTER_USER'] %>
-        password: <%= ENV['MONGO_RADA_REPORTER_PASS'] %>
-        roles:
-          - 'dbOwner'
-        auth_mech: :scram
-        auth_source: rada_reporter
-        connect: :replica_set
-        replica_set: <%= ENV['MONGO_RADA_REPORTER_REPL_SET'] %>
-        max_pool_size: 20
-        min_pool_size: 2
+  options:
+test:
+  clients:
+    default:
+      database: rada_reporter_test
+      hosts:
+        - localhost:27017
+      options:
         read:
-           mode: :secondary_preferred
+          mode: :primary
+        max_pool_size: 1
 
 staging:
   clients:
@@ -52,6 +50,6 @@ staging:
         roles:
           - 'dbOwner'
         auth_mech: :scram
-        auth_source: rada_reporterstaging
+        auth_source: rada_reporter
         max_pool_size: 20
         min_pool_size: 2
