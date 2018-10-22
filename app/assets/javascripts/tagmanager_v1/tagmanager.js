@@ -1,11 +1,11 @@
 $(document).ready(function(){
 
-  function tracking_spy(){
-    $("#tracking_spy").click(function(){
-      Spymaster.track("video","play","abc");
-    });
-  }
-  tracking_spy();
+  // function tracking_spy(){
+  //   $("#tracking_spy").click(function(){
+  //     Spymaster.track("video","play","abc");
+  //   });
+  // }
+  // tracking_spy();
   var obj = {
     name: "",
     selector: {},
