@@ -91,6 +91,7 @@ module Tagmanager
     end
 
     def view_tag
+      # binding.pry
       id = params[:id]
       @tag_view = Tag.find(:id => id)
       render template: "tagmanager/view_tag_detail"
