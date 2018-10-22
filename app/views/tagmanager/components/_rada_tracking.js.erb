@@ -28,7 +28,7 @@ var RadaTracking = (function() {
     name: <%= "'#{@app_name}'".html_safe %>,
     version: "beta",
     // html of website must have rada_uid is user_id and ga_client_id is google analytic client id before 
-    // user: jQuery('#rada_uid').val(),
+    user: jQuery('#rada_uid').val(),
     ga_client_id: jQuery('#ga_client_id').val(),
   }
 
@@ -81,6 +81,7 @@ var RadaTracking = (function() {
       client_browser: clientInfo.get_browser_info().name,
       client_version: "js_3.3.1",
       type_track:"",
+      user_id: app_info.user_id,
       ga_client_id: app_info.ga_client_id,
       extras: {},
     }
@@ -88,17 +89,17 @@ var RadaTracking = (function() {
     return dataTemp;
   }
 
-  function readAdditionalData(data) {
-    // var user_id = $('#rada_uid').val();
-    var user_id = jQuery('meta[name=rada_uid]');
-    if(user_id) {
-      user_id = user_id.attr("content");
-    } else {
-      user_id = jQuery('#rada_uid').val();
-      if (!user_id) user_id = null;
-    }
-    data.user = user_id;
-  }
+  // function readAdditionalData(data) {
+  //   // var user_id = $('#rada_uid').val();
+  //   var user_id = jQuery('meta[name=rada_uid]');
+  //   if(user_id) {
+  //     user_id = user_id.attr("content");
+  //   } else {
+  //     user_id = jQuery('#rada_uid').val();
+  //     if (!user_id) user_id = null;
+  //   }
+  //   data.user = user_id;
+  // }
 
   //push data to localStorage
   function push_data_to_lc(name,data) {
