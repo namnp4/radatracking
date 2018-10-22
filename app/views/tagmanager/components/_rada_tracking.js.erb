@@ -90,7 +90,7 @@ var RadaTracking = (function() {
 
   function readAdditionalData(data) {
     // var user_id = $('#rada_uid').val();
-    var user_id = $('meta[name=rada_uid]');
+    var user_id = jQuery('meta[name=rada_uid]');
     if(user_id) {
       user_id = user_id.attr("content");
     } else {
