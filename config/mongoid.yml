@@ -26,9 +26,6 @@ production:
       hosts:
         - localhost:27017
       options:
-        user: namnp
-        password: Topica@123
-
   options:
 test:
   clients:
