@@ -29,9 +29,9 @@ production:
         user: <%= ENV['MONGO_RADA_REPORTER_USER'] %>
         password: <%= ENV['MONGO_RADA_REPORTER_PASS'] %>
         roles:
-          - 'root'
-	auth_mech: scram
-	auth_source: rada_reporter_development
+          - 'dbOwner'
+        auth_mech: :scram
+        auth_source: rada_reporter_development
   options:
 test:
   clients:
