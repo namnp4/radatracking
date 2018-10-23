@@ -1,0 +1,9 @@
+%p.title Products Index Page
+%br
+= link_to 'New', new_tagmanager_product_path
+%br
+%p.title List
+%br
+- @products.each do |product|
+  = render partial: 'product_base.html', locals: { product: product }
+  %br

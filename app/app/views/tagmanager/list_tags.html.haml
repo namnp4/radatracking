@@ -1,0 +1,31 @@
+%ol.breadcrumb{:style => "background-color:white;"}
+  %li
+    %a{:href => "/tagmanager/main"} Home
+  %li.active List
+.container{:style => "background-color:#e3e3e3;"}
+  %h2{:style => "text-align:center;font-family:Open Sans;font-weight:bold;color:#337ab7;"} List tag
+  %table.table{:style => "text-align:center;"}
+    %thead
+      %tr
+        %th{:style => "text-align:center;"} Tag name
+        %th{:style => "text-align:center;"} Selector
+        %th{:style => "text-align:center;"} Value
+        %th{:style => "text-align:center;"} Author
+        %th{:style => "text-align:center;"} Action
+    %tbody
+    - @tags.each do |t|
+      %tr
+        %td #{t[:name].size > 20 ? (t[:name][0..20] + "...") : t[:name]}
+        %td #{t[:selector][:dom]}
+        %td #{t[:selector][:value].size > 20 ? (t[:selector][:value][0..20] + "...") : t[:selector][:value][0..10]}
+        %td #{t[:author]}
+        %td
+          %a.btn.btn-default{:href => "view_tag/#{t[:id]}"}View
+          &nbsp;
+          - if can? :update,t
+            %a.btn.btn-primary{:href => "edit_tag/#{t[:id]}"}
+              Edit
+            &nbsp;
+          - if can? :destroy,t
+            %a.delete_tag.btn.btn-danger{:href => "#",:tag_id => "#{t[:id]}" }
+              Delete

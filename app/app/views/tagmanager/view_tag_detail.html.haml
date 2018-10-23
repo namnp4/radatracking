@@ -1,0 +1,45 @@
+%ol.breadcrumb{:style => "background-color:white;"}
+  %li
+    %a{:href => "/tagmanager/main"} Home
+  %li
+    %a{:href => "/tagmanager/list"} List
+  %li.active View
+%h2{:style => "text-align:center;font-family:Open Sans;font-weight:bold;color:#337ab7;"} Detail tag
+.container-details
+  .create-event
+    .athor
+      %h4 Author
+      %p #{@tag_view.author}
+    .name-event
+      %h4 Tag name
+      %input#input-name-event.form-control{:type => "text",:value => @tag_view.name,:disabled => true}
+    .selector-block
+      .title-block
+        %h4 Selector
+      .select-selector
+        %select.form-control#select-selector{:name => "selector"}
+          - ["selector","classes element","id element","other"].each do |value|
+            %option{:value => value,:selected => (@tag_view.selector["dom"] == value ? true : false),:disabled => true}= value
+      .select-compare
+        %select.form-control#select-compare{:name => "compare"}
+          - ["equals","contains","other"].each do |value|
+            %option{:value => value,:selected => (@tag_view.selector["compare"] == value ? true : false),:disabled => true}= value
+      .input-text
+        %input#selector-value.form-control{:type => "text",:value => @tag_view.selector["value"],:disabled => true}
+      %p
+      .other-text
+        %input#input-other.form-control{:type => "text",:placeholder => "Other value",:name => "selector-other-value",:value => @tag_view.selector["other_value"],:disabled => true}
+    .trigger-block
+      .title-block
+        %h4 Trigger
+      - ['click', 'focus', 'other'].each do |value|
+        %label.checkbox-inline.trigger-radio
+          %input{:name => "trigger", :type => "radio", :value => value,:required => '',:checked => (@tag_view.trigger["value"] == value) ? 'checked' : false,:disabled => true}
+          .value-text=value
+    .handle-block
+      .title-block
+        %h4 Handle
+      .select-selector
+        %select.form-control#select-handle{:name => "handle"}
+          - ["spymaster","radareporter","other"].each do |value|
+            %option{:value => value,:selected => (@tag_view.handle["value"] == value ? true : false),:disabled =>true}#{value}

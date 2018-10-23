@@ -1,0 +1,63 @@
+/ %script{:src => "http://localhost:3000/tagmanager/get_script",:async => ""}
+%main.body-wrapper
+  %form.form-add{method: 'POST', action: '/tagmanager/create'}
+    .container
+      .col-sm-2.container-left
+        .show-all-tag
+          %a{:href =>"/tagmanager/list"}
+            %h4{:style => "text-align:center;font-family:Open Sans;font-weight:bold;color:#337ab7;"} View tags
+      .col-sm-10.container-right
+        .create-event
+          .name-event
+            %h4
+              Input tag name
+              %span{:style => "color:red;"} *
+            %input#input-name-event.form-control{:type => "text",:placeholder => "Name event",:required => '',:name => "tag_name",:oninput => "setCustomValidity('')",:oninvalid => "this.setCustomValidity('Insert value in require field')"}
+          .selector-block
+            .title-block
+              %h4
+                Selector
+                %span{:style => "color:red;"} *
+            .select-selector
+              %select.form-control#select-selector{:name => "selector"}
+                %option{:value => "selector",:disabled => true} Selector
+                %option{:value => "classes element"} Classes Element
+                %option{:value => "id element"} ID Element
+                %option{:value => "other"} Other
+            .select-compare
+              %select.form-control#select-compare{:name => "compare"}
+                %option{:value => "equals"} equals
+                %option{:value => "contains"} contains
+                %option{:value => "other"} other
+            .input-text
+              %input#selector-value.form-control{:type => "text",:placeholder => "Value",:required => '',:name => "selector-value",:oninput => "setCustomValidity('')",:oninvalid => "this.setCustomValidity('Insert value in require field')"}
+            %p
+            .other-text
+              %input#input-other.form-control{:type => "text",:placeholder => "Other value",:name => "selector-other-value"}
+          .trigger-block#trigger-home
+            .title-block
+              %h4
+                Trigger
+                %span{:style => "color:red;"} *
+            - ['click', 'focus', 'other'].each do |value|
+              %label.checkbox-inline.trigger-radio
+                %input{:name => "trigger", :type => "radio", :value => value,:required => '',:class => value}
+                .value-text=value
+            .other-Trigger
+              %textarea#other-trigger{:rows => "5",:cols => "100",:name => "other-trigger"}
+          .handle-block
+            .title-block
+              %h4 Handle
+            .select-selector
+              %select.form-control#select-handle{:name => "handle",:onchange => "change_state_handle(this)"}
+                %option{:value => "radareporter"} Rada reporter
+                %option{:value => "spymaster"} Spy master
+                %option{:value => "other"} Other
+              .other-Handler
+                %textarea#other-handler{:rows => "5",:cols => "100",:name => "other-handle",:style => "display:none"}
+          .submit-block
+            .submit-form{:style => "text-align:center;padding-top:50px;"}
+              %button#save-data.btn.btn-success{:type => 'submit'} CREATE
+  - if flash[:notice]
+    .notice=flash[:notice]
+#preloader
