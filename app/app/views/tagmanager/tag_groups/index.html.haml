@@ -1,9 +1,0 @@
-%p.title Tag Groups Index Page
-%br
-= link_to 'New', new_tagmanager_tag_group_path
-%br
-%p.title List
-%br
-- @tag_groups.each do |tag_group|
-  = render partial: 'tag_group_base.html', locals: { tag_group: tag_group }
-  %br
