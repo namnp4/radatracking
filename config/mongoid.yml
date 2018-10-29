@@ -26,12 +26,12 @@ production:
       hosts:
         - localhost:27017
       options:
-#        user: <%= ENV['MONGO_RADA_REPORTER_USER'] %>
-#        password: <%= ENV['MONGO_RADA_REPORTER_PASS'] %>
-#        roles:
-#        - 'dbOwner'
-#        auth_mech: :scram
-#        auth_source: rada_reporter_development
+        user: namnp
+        password: Topica@123
+        roles:
+        - 'dbOwner'
+        auth_mech: :scram
+        auth_source: rada_reporter_development
 #        max_pool_size: 20
 #        min_pool_size: 2
   options:
