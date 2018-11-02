@@ -1,10 +1,14 @@
 %html
   %head
+    %meta{:content => current_user&.id, :name => "rada_uid",:property => "tracking"}/
+    %meta{:content => "aaa", :name => "xxxx",:property => "tracking"}/
     %meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
     %title RadaReporter
     = csrf_meta_tags
     = stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track': 'reload'
     = javascript_include_tag 'application', 'data-turbolinks-track': 'reload'
+    / %input#rada_uid{:type => "hidden",:value => current_user.id} 
+    = render partial: "layouts/tracking"
   %body
     %nav.navbar.navbar-default.nav-cus
       .container-fluid

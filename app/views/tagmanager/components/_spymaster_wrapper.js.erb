@@ -1,0 +1,44 @@
+ (function() {
+  if (typeof(window.Spymaster) == 'object' && typeof(window.SpymasterRadarWrapper) == 'undefined') {
+    window.SpymasterRadarWrapper = (function() {
+      var afterFunction = function() {
+        if (typeof(RadaTracking) !== 'object' && typeof(RadaTracking.spytrack) === "function") { return; }
+        var params; 
+        if (typeof(arguments[0]) == 'object') {
+          params = arguments[0];
+          var options = typeof(arguments[1]) == 'object' ? arguments[1] : {};
+          params = {
+            category: params.category,
+            type_track: params.behavior,
+            target: params.target,
+            extras: params.extras,
+            options: options
+          }
+        } else {
+          var options = typeof(arguments[4]) == 'object' ? arguments[4] : {};
+          params = {
+            category: arguments[0],
+            type_track: arguments[1],
+            target: arguments[2],
+            extras: arguments[3],
+            options: options
+          }
+        }
+        RadaTracking.spytrack(params);
+      }
+
+      return {
+        afterWrapper: function (fn) {
+            return function () {
+            var result = fn.apply(this, arguments);
+            try {
+               afterFunction.apply(this, arguments);
+            } catch(e) { }
+            return result;
+          }
+        }
+      }
+    })();
+    window.Spymaster.track = window.SpymasterRadarWrapper.afterWrapper(window.Spymaster.track);
+  }
+})();

@@ -1,525 +1,231 @@
-<%= render_part 'tagmanager/components/video_handler' %>
-//radar tracked
-var RadaReporter = (function() {
-  var client_version = "js.<%= Constants::JS_LIB_VERSION %>";
-  <% domain = 'http://localhost:3000' %>
-  var is_debug = <%= Rails.env.development? ? true : false %> ;
-  var api_uri = "<%= domain %>/api/tracking/track";
-  var iframe_src = "<%= domain %>/tagmanager/iframe.html";
-  var origin = "<%= domain %>";
+<%= render partial: 'tagmanager/components/action_cookie' %>
 
-  var local_request_id = 0;
-  var iframe = null;
-  var iframe_ready = false;
-  var local_message_queue = [];
-  var local_request_queue = {};
-  var global_user = null;
-  var key_global_user = "global_user";
-  var user = null;
-  // Client variables
-  var app_name = null;
-  var app_version = null;
-  var device_info = null;
-  var browser_info = null;
-
-  // It would be better to say hi
-  var sayHi = function() {
-    alert("Hello! I am Spymaster!");
-  };
-
-  // Show object's infos
-  var internal_log = function() {
-    // console.log(Spymaster.info)
-  };
-
-  // Tracking stuff -------------------------------------------------------------------------------/
-  // Build tracking url from data
-  var build_tracking_api = function(request) {
-    var api = api_uri;
-    var params = [];
-
-    if (client_version)
-      params.push("client_version=" + client_version);
-
-    if (app_name)
-      params.push("app_name=" + app_name);
-
-    if (app_version)
-      params.push("app_version=" + app_version);
-
-    if (global_user)
-      params.push("global_user=" + global_user);
-
-    if (request.user)
-      params.push("user=" + request.user);
-
-    if (request.behavior)
-      params.push("behavior=" + request.behavior);
-
-    if (request.category)
-      params.push("category=" + request.category);
-
-    if (request.target)
-      params.push("target=" + encodeURIComponent(request.target));
-
-    if (request.referer)
-      params.push("referer=" + encodeURIComponent(request.referer));
-
-    if (request.url)
-      params.push("url=" + encodeURIComponent(request.url));
-
-    var extras = request.extras;
-    if (extras) {
-      // Extras may be string or object
-      if (typeof(extras) == 'string')
-        extras = JSON.parse(extras);
-    }
-    // Parse utm source from referer
-    if (queries = request.queries) {
-      if (!extras) extras = {}
-      for (i = 0; i < queries.length; i++)
-        extras[queries[i][0]] = queries[i][1];
-    }
-    if (extras) {
-      extras = JSON.stringify(extras);
-      if (extras)
-        params.push("extras=" + encodeURIComponent(extras));
-    }
-
-    if (!device_info)
-      device_info = get_device_info();
-    if (device_info)
-      params.push("device=" + encodeURIComponent(JSON.stringify(device_info)));
-
-    if (!browser_info)
-      browser_info = get_browser_info();
-    if (browser_info)
-      params.push("browser=" + encodeURIComponent(JSON.stringify(browser_info)));
-
-    // Check if request delayed before sending
-    var delay_time = new Date().getTime() - request.created_at;
-
-    // Send delay time if it greater than 100ms
-    if (delay_time > 100) {
-      params.push("delay=" + delay_time);
-    }
-
-    api += "?" + params.join("&");
-    api = encodeURI(api);
-
-    return api;
-  };
-
-  /** Default interested queries **/
-  var interested_queries = ["utm_source", "utm_medium", "utm_term", "utm_content", "utm_campaign"];
-  var parse_interested_queries = function() {
-    result = [];
-    if (document.location && document.location.search) {
-      queries = document.location.search.substr(1).split('&');
-      for (i = 0; i < queries.length; i++) {
-        query = queries[i];
-        q = query.split('=');
-        if (q[0] && q[1]) {
-          for (j = 0; j < interested_queries.length; j++)
-            if (q[0] == interested_queries[j]) {
-              result.push([q[0], q[1]]);
-            }
-        }
-      }
-    }
-    return result;
-  }
-
-  // Send tracking request to server
-  var send_tracking_request = function(tracking_id, url) {
-    var httpClient = new XMLHttpRequest();
-    httpClient.open("GET", url, true);
-    httpClient.onreadystatechange = tracking_callback(tracking_id, httpClient);
-    httpClient.send(null);
-    update_tracking_request_status(tracking_id, 'sent');
-  };
-
-  /** Handle tracking request response **/
-  var tracking_callback = function(tracking_id, httpClient) {
-    return function() {
-      // When request finished
-      if (httpClient.readyState == 4) {
-        if ([403, 404, 408, 500, 502, 503, 504].indexOf(httpClient.status) >= 0) {
-          update_tracking_request_status(tracking_id, "retry");
-        } else {
-          update_tracking_request_status(tracking_id, "done");
-        }
-        if (httpClient.status == 200) {
-          if (!global_user && httpClient.response) {
-            response = JSON.parse(httpClient.response);
-            if (response.global_user) {
-              save_gid(response.global_user);
-            }
-          }
-        }
-      }
-    }
-  }
-
-  var process_tracking = function(request) {
-    api = build_tracking_api(request);
-    send_tracking_request(request.id, api);
-  }
-
-  // Handle tracking request from external
-  var internal_track = function(category, behavior, target, extras, options) {
-    // Build request
-    request = build_tracking_request(category, behavior, target, extras, options);
-    // Store tracking request
-    store_tracking_request(request);
-    // Next on tracking
-    internal_track_request(request);
-  };
-
-  // Do tracking without store rerquest
-  var internal_track_request = function(request) {
-    // Don't track if iframe is not ready, it'll be tracked on iframe loaded
-    if (!iframe_ready)
-      return;
-    // Check global_user
-    if (global_user) {
-      process_tracking(request);
-    } else {
-      request_gid(function(gid) {
-        process_tracking(request);
-      });
-    }
-  }
-
-  var retrack_stored_request = function() {
-    retrack_stored_request_from_current();
-  }
-
-  var retrack_stored_request_from_iframe = function() {
-    get_local_storage_value("tracking_queue", function(key, value) {
-      retrack_stored_request_from(tracking_queue);
-    });
-  }
-
-  var retrack_stored_request_from_current = function() {
-    var tracking_queue = localStorage.getItem("tracking_queue");
-    retrack_stored_request_from(tracking_queue);
-  }
-
-  var retrack_stored_request_from = function(queue) {
-    if (queue) {
-      tracking_queue = JSON.parse(queue);
-      for (id in tracking_queue) {
-        request = tracking_queue[id];
-        // Only retrack ready or retry requests
-        if (["ready", "retry"].indexOf(request["status"]) >= 0) {
-          internal_track_request(request);
-        } else {
-          // Remove all done or sent requests
-          remove_tracking_request_from_local_storage(request.id);
-        }
-      }
-    } else {
-    }
-  }
-
-  var build_tracking_request = function(category, behavior, target, extras, options) {
-    return {
-      id: "55f28d3d7465615e68000001",
-      status: "ready",
-      user: user,
-      category: category,
-      behavior: behavior,
-      target: target,
-      extras: extras,
-      queries: parse_interested_queries(),
-      referer: options.referer || document.referrer,
-      url: options.url || document.URL,
-      created_at: new Date().getTime()
-    };
-    // Request status
-    // + ready: created but not sent yet
-    // + sent: sent but not got the response yet
-    // + retry: sent but error (500, 404, ...)
-    // + done: sent and ok but will be deleted right away
-  }
-    // Store tracking request
-  var store_tracking_request = function(request) {
-    push_tracking_request_to_local_storage(request);
-  };
-
-  // Initialize something
-  var internal_setup = function(p_app_name, p_app_version, p_user, p_api_uri) {
-    app_name = p_app_name;
-    app_version = p_app_version;
-    user = p_user;
-    if (p_api_uri)
-      api_uri = p_api_uri
-    init_iframe();
-  };
-
-  var save_gid = function(gid) {
-    if (gid) {
-      global_user = gid;
-      localStorage.setItem('gid', gid);
-      set_local_storage_value(key_global_user, gid, function() {});
-    }
-  }
-
-  /** Get gid and return by callback **/
-  var request_gid = function(callback) {
-    // Try to get from localstorage
-    global_user = localStorage.getItem('gid');
-    if (global_user) {
-      if (callback) callback(global_user);
-    } else {
-      // Get from iframe's localstorage
-      get_local_storage_value(key_global_user, function(key, value) {
-        global_user = value;
-        localStorage.setItem('gid', value);
-        if (callback) callback(global_user);
-      });
-    }
-  }
-
-  /** Get gid and return result **/
-  var get_gid = function() {
-    if (!global_user)
-      global_user = localStorage.getItem('gid');
-    return global_user;
-  }
-    // End tracking stuff --------------------------------------------------------------------------/
-
-  // Local stuff ---------------------------------------------------------------------------------/
-  var init_iframe = function() {
-    if (!iframe) {
-      if (window.postMessage && window.JSON && window.localStorage) {
-        if (document.body) {
-          iframe = document.createElement("iframe");
-          iframe.style.cssText = "display:none;width:1px;height:1px;";
-          document.body.appendChild(iframe);
-
-          if (window.addEventListener) {
-            iframe.addEventListener("load", function() {
-              on_iframe_loaded();
-            }, false);
-            window.addEventListener("message", function(event) {
-              handle_local_storage_message(event);
-            }, false);
-          } else if (iframe.attachEvent) {
-            iframe.attachEvent("onload", function() {
-              on_iframe_loaded();
-            }, false);
-            window.attachEvent("onmessage", function(event) {
-              handle_local_storage_message(event);
-            });
-          }
-
-          iframe.src = iframe_src;
-        } else {
-          window.onload = function() {
-            init_iframe();
-          }
-        }
-      } else {
-        throw new Error("Spymaster: Unsupported browser.");
-      }
-    }
-  }
-
-  var on_iframe_loaded = function() {
-    iframe_ready = true;
-    var queue = local_message_queue;
-    if (queue.length) {
-      for (var i = 0, len = queue.length; i < len; i++) {
-        send_local_storage_request(queue[i]);
-      }
-    }
-    local_message_queue = [];
-
-    // Re track all postponed request
-    retrack_stored_request();
-  };
-
-  var push_tracking_request_to_local_storage = function(tracking_request) {
-    push_tracking_request_to_current_local_storage(tracking_request);
-  };
-
-  var push_tracking_request_to_iframe_local_storage = function(tracking_request) {
-    var request = {
-      action: "store_tracking_request",
-      object: tracking_request,
-      id: ++local_request_id
-    };
-    prepare_local_storage_request(request, function() {});
-  }
-
-  var push_tracking_request_to_current_local_storage = function(tracking_request) {
-    var tracking_queue = get_tracking_queue_from_current_local_storage();
-    tracking_queue[tracking_request.id] = tracking_request;
-    tracking_queue = JSON.stringify(tracking_queue);
-    localStorage.setItem("tracking_queue", tracking_queue);
-  }
-
-  var get_tracking_queue_from_current_local_storage = function() {
-    var tracking_queue = localStorage.getItem("tracking_queue");
-    if (tracking_queue)
-      tracking_queue = JSON.parse(tracking_queue);
-    else
-      tracking_queue = {};
-    return tracking_queue;
-  }
-
-  var save_tracking_queue_to_current_local_storage = function(tracking_queue) {
-    s_tracking_queue = JSON.stringify(tracking_queue);
-    localStorage.setItem("tracking_queue", s_tracking_queue);
-  }
-
-  var update_tracking_request_status = function(tracking_id, status) {
-    var tracking_queue = get_tracking_queue_from_current_local_storage();
-    if (tracking_queue && tracking_queue[tracking_id]) {
-      if (status == "done") {
-        delete tracking_queue[tracking_id];
-      } else {
-        tracking_queue[tracking_id]['status'] = status;
-      }
-      save_tracking_queue_to_current_local_storage(tracking_queue);
-    } else {
-    }
-  }
-
-  var remove_tracking_request_from_local_storage = function(tracking_id) {
-    remove_tracking_request_from_current_local_storage(tracking_id);
-  };
-
-  var remove_tracking_request_from_iframe_local_storage = function(tracking_id) {
-    var request = {
-      action: "remove_tracking_request",
-      object: tracking_id,
-      id: ++local_request_id
-    };
-    prepare_local_storage_request(request, function() {});
-  };
-
-  var remove_tracking_request_from_current_local_storage = function(tracking_id) {
-    var tracking_queue = get_tracking_queue_from_current_local_storage();
-    if (tracking_queue[tracking_id]) {
-      delete tracking_queue[tracking_id];
-      save_tracking_queue_to_current_local_storage(tracking_queue);
-    } else {
-    }
-  }
-
-  var get_local_storage_value = function(key, callback) {
-    var request = {
-      action: "get",
-      key: key,
-      id: ++local_request_id
-    };
-    prepare_local_storage_request(request, callback);
-  };
-
-  var set_local_storage_value = function(key, value, callback) {
-    var request = {
-      action: "set",
-      key: key,
-      value: value,
-      id: ++local_request_id
-    };
-    prepare_local_storage_request(request, callback);
-  }
-
-  var prepare_local_storage_request = function(request, callback) {
-    var data = {
-      request: request,
-      callback: callback
-    };
-    if (iframe_ready) {
-      send_local_storage_request(data);
-    } else {
-      local_message_queue.push(data);
-    }
-
-    if (!iframe) {
-      init_iframe();
-    }
-  }
-
-  var send_local_storage_request = function(data) {
-    local_request_queue[data.request.id] = data;
-    iframe.contentWindow.postMessage(JSON.stringify(data.request), origin);
-  };
-
-  var handle_local_storage_message = function(event) {
-    if (event.origin == origin) {
-      var data = JSON.parse(event.data);
-      local_request_queue[data.id].callback(data.key, data.value);
-      delete local_request_queue[data.id];
-    }
-  };
-
-  var internal_handle_player = function(player) {
-    jwplayer_plugin(window.jwplayer(), {
-      pixel: "<%= domain %>/vping.gif",
-      uid: user,
-      gid: get_gid()
-    });
-  }
-<%= render partial: 'tagmanager/components/client_utils' %>
-  // Public stuff ---------------------------------------------------------------------------------/
+var ClientInfo = (function() {
+  <%= render partial: 'tagmanager/components/client_utils' %>
+  // public method
   return {
-    name: "Spymaster",
-    info: "Pedia Tracking System - Spymaster v<%= Constants::TRACKER_VERSION %>\n" +
-      "Javascript library v<%= Constants::JS_LIB_VERSION %>\n" +
-      "Pedia 2015",
-    // Just say hi
-    sayHi: function() {
-      sayHi();
+    get_browser_info: get_browser_info,
+    get_device_info: get_device_info
+  }
+})();
+
+var RadaTracking = (function() {
+  var rada_info = {
+    <% if Rails.env.development? %>
+      url_api:"//localhost:3000/api/tracking/rada_track",
+      request_cid:"//localhost:3000/api/tracking/generate_client_id",
+    <% elsif Rails.env.staging? %>
+      url_api: "//tcs-rada-reporter-staging.ingress.v2.cloud.edumall.io/api/tracking/rada_track",
+      request_cid: "//tcs-rada-reporter-staging.ingress.v2.cloud.edumall.io/api/tracking/generate_client_id",
+    <% elsif Rails.env.production? %>
+      url_api:"//toppick.vn/api/tracking/rada_track",
+      request_cid:"//toppick.vn/api/tracking/generate_client_id",
+    <% end %>
+      method: "post"
+  }
+  
+  var app_info = {
+    name: <%= "'#{@app_name}'".html_safe %>,
+    version: "beta",
+    // html of website must have rada_uid is user_id and ga_client_id is google analytic client id before 
+    // user: jQuery('#rada_uid').val(),
+    ga_client_id: jQuery('#ga_client_id').val(),
+  }
+
+  var tracker_prefix = "rada";
+  var cookie_infos = {
+    client_id: {
+      name: "tracker.rada_tracking",
+      //set expires for cookie is 3 months
+      expires: 2160
+    }, 
+    pending_send_flag: {
+      name: "tracker.pending_send_flag",
+      expires: 1
     },
-    // Track event
-    track: function(params) {
-      if (typeof(arguments[0]) == 'object') {
-        var options = typeof(arguments[1]) == 'object' ? arguments[1] : {};
-        internal_track(params.category, params.behavior, params.target, params.extras, options);
-      } else {
-        var options = typeof(arguments[4]) == 'object' ? arguments[4] : {};
-        internal_track(arguments[0], arguments[1], arguments[2], arguments[3], options);
-      }
-    },
-    // Initialize something
-    setup: function(app_name, app_version, user, _api_uri) {
-      internal_setup(app_name, app_version, user, _api_uri);
-    },
-    // Show object's infos
-    log: function() {
-      internal_log();
-    },
-    // Queries from url that want to push into extras
-    // Originally using for marketing chanel
-    // Input is array of keys
-    set_interested_queries: function(queries) {
-      if (typeof(queries) == 'object') {
-        interested_queries = queries;
-      } else {
-        console.error("Intereted queries should be an array of keys");
-      }
-    },
-    handle_player: function(player) {
-      internal_handle_player(player);
-    },
-    get_local_storage_value: function(key, callback){
-    get_local_storage_value(key, callback);
-    },
-    set_local_storage_value: function(key, value, callback){
-      set_local_storage_value(key, value, callback);
-    },
-    get_browser_info: function(){
-      return get_browser_info();
-    },
-    get_device_info: function(){
-      return get_device_info();
+    tracking_session: {
+      name: "tracker.tracking_session",
+      expires: 5
     }
   }
-  // End public stuff ------------------------------------------------------------------------------/
+
+  function getValueCookie(cookie_info) {
+    var name = cookie_info.name;
+    if(name === undefined){
+      return undefined;
+    } else {
+      var match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+      if (match) return match[2];
+    }
+  }
+
+  function saveCookie(cookie_info, value) {
+    Action_cookie.set_cookie(cookie_info.name, value, cookie_info.expires);
+  }
+
+  var clientInfo = ClientInfo;
+
+  //init data for track
+  function build_data_for_track() {
+    var time_start = Date.now();
+    var storage_key = tracker_prefix + time_start;
+
+    var dataTemp = {
+      storage_key: storage_key,
+      time_start: time_start,
+      app_name: app_info.name,
+      app_version: app_info.version,
+      referer:document.referrer,
+      url: window.location.href,
+      client_os: clientInfo.get_device_info().os_name,
+      client_browser: clientInfo.get_browser_info().name,
+      client_version: "js_3.3.1",
+      type_track:"",
+      ga_client_id: app_info.ga_client_id,
+      extras: {},
+    }
+    readAdditionalData(dataTemp);
+    return dataTemp;
+  }
+
+  function readAdditionalData(data) {
+    // var user_id = $('#rada_uid').val();
+    var user_id = $('meta[name=rada_uid]');
+    if(user_id) {
+      user_id = user_id.attr("content");
+    } else {
+      user_id = jQuery('#rada_uid').val();
+      if (!user_id) user_id = null;
+    }
+    data.user = user_id;
+  }
+
+  //push data to localStorage
+  function push_data_to_lc(name,data) {
+    data_json = JSON.stringify(data);
+    localStorage.setItem(name,data_json);
+  }
+
+  //transformation data before send data to server
+  function tranform_data(params) {
+    var data_tranform = [];
+    for (i = 0; i < params.length; i++) {
+      var obj_temp = {};
+      var key = params.key(i);
+      if(key.startsWith(tracker_prefix)) {
+        obj_temp.key = key;
+        obj_temp.data = JSON.parse(params.getItem(key));
+        data_tranform.push(obj_temp);
+      }
+    }
+    return data_tranform;
+  }
+
+  //after send data to server then delete old data
+  function delete_old_localStorage(params) {
+    for (i = 0; i < params.length; i++) {
+      localStorage.removeItem(params[i]["key"]);
+    }
+  }
+  
+  function send_data_to_server () {
+    var client_id = getValueCookie(cookie_infos.client_id);
+    if(!client_id) {
+      saveCookie(cookie_infos.pending_send_flag, true);
+      generate_client_id();
+      return;
+    }
+
+    var data_send_server = {};
+    var data_local_storage = tranform_data(localStorage);
+    data_send_server.client_id = client_id;
+    data_send_server.tracking_session =  getValueCookie(cookie_infos.tracking_session);
+    data_send_server.source = JSON.stringify(data_local_storage);
+    jQuery.ajax({
+      url: rada_info.url_api,
+      type: rada_info.method,
+      data: data_send_server,
+      success: function(response) {
+        delete_old_localStorage(data_local_storage);
+        setSentTime(Date.now());
+        saveCookie(cookie_infos.tracking_session, response.tracking_session);
+        saveCookie(cookie_infos.pending_send_flag, false);
+      }
+    });
+  }
+
+  function generate_client_id() {
+    var check_cookie = getValueCookie(cookie_infos.client_id);
+    if(!check_cookie) {
+      jQuery.ajax({
+        url: rada_info.request_cid,
+        type: "POST",
+        data: { action:"request_cid" },
+        success: function(response) {
+          saveCookie(cookie_infos.client_id, response.client_id);
+          saveCookie(cookie_infos.tracking_session, response.tracking_session);
+          if (getValueCookie(cookie_infos.pending_send_flag)) {
+            send_data_to_server();
+          }
+        }
+      });
+    }
+  }
+
+  function track(params) {
+    var data = build_data_for_track();
+    for(key in params){
+      if(params[key]){
+        data[key] = params[key];
+      }
+    }
+    push_data_to_lc(data["storage_key"], data);
+  }
+
+  function setSentTime(time) {
+    push_data_to_lc("time_send", time);
+  }
+
+  function getThresholdInterval(thresholds, diff) {
+    var interval = 30000;
+    var max = 0;
+    for (threshold of thresholds) {
+      if (diff >= threshold.threshold && max <= threshold.threshold) {
+        max = threshold.threshold;
+        interval = threshold.interval;
+      }
+    } 
+    return interval;
+  }
+
+  function setup(config) {
+      generate_client_id();
+      var startLoopTime =  Date.now();
+      var thresholds = config.sendConfig.thresholds;
+      var currentInterval = getThresholdInterval(thresholds, 0);
+      var loopsend = setInterval(function() {
+        var time_send = localStorage.getItem("time_send");
+        var current_time = Date.now();
+        if (time_send) {
+          try { time_send =  JSON.parse(time_send); } catch (e) { time_send = 0; }
+          var nextInterval = getThresholdInterval(thresholds, current_time - startLoopTime);
+          if ((current_time - time_send) >= (currentInterval) || nextInterval <= 0) {
+              send_data_to_server();
+          }
+          currentInterval = nextInterval;
+          if (currentInterval <= 0) {
+            clearInterval(loopsend);
+          }
+        } else {
+          setSentTime(current_time);
+        }
+      }, config.sendConfig.loopInMilis);
+  }
+
+  return {
+    spytrack: track,
+    build_data: build_data_for_track,
+    push_data: push_data_to_lc,
+    setup: setup
+  }
 })();
-//end spy
