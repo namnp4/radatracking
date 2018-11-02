@@ -1,9 +1,132 @@
-// rada tracking handle
 <%= render partial: 'tagmanager/components/rada_tracking' %>
-
-// scroll tracker
 <%= render partial: 'tagmanager/components/scroll_tracking' %>
+<%= render partial: 'tagmanager/components/action_cookie' %>
+var RadaTracking = (function() {
+  var rada_info = {
+    <% if Rails.env.development? %>
+      url_api:"//localhost:3000/api/tracking/rada_track",
+      request_cid:"//localhost:3000/api/tracking/generate_client_id",
+    <% elsif Rails.env.staging? %>
+      url_api: "//tcs-rada-reporter-staging.ingress.v2.cloud.edumall.io/api/tracking/rada_track",
+      request_cid: "//tcs-rada-reporter-staging.ingress.v2.cloud.edumall.io/api/tracking/generate_client_id",
+    <% elsif Rails.env.production? %>
+      url_api:"//tracking.toppick.vn/api/tracking/rada_track",
+      request_cid:"//tracking.toppick.vn/api/tracking/generate_client_id",
+    <% end %>
+      method: "post"
+  }
+  var app_info = {
+    name: <%= "'#{@app_name}'".html_safe %>,
+    version: "beta",
+    user: jQuery('#rada_uid').val(),
+    ga_client_id: jQuery('#ga_client_id').val(),
+  }
+  //set expires for cookie is 10h
+  var cookie_info = {
+    name: "rada_tracking",
+    expires: 10
+  }
+  //init data for track
+  function build_data_for_track(){
+    var time_start = new Date().getTime();
+    var storage_key = "rada" + time_start;
+    var dataTemp = {
+      storage_key: storage_key,
+      time_start: time_start,
+      app_name: app_info.name,
+      app_version: app_info.version,
+      referer:document.referrer,
+      url: window.location.href,
+      client_os: RadaReporter.get_device_info().os_name,
+      client_browser: RadaReporter.get_browser_info().name,
+      type_track:"",
+      user: app_info.user,
+      ga_client_id: app_info.ga_client_id,
+      extras: {},
+    }
+    return dataTemp;
+  }
+  //push data to localStorage
+  function push_data_to_lc(name,data){
+    data_json = JSON.stringify(data);
+    localStorage.setItem(name,data_json);
+  }
+  //transformation data before send data to server
+  function tranform_data(params){
+    var data_tranform = [];
+    var substring = "rada";
+    for (i = 0; i < params.length; i++)   {
+      var obj_temp = {};
+      if(params.key(i).indexOf(substring) !== -1){
+        obj_temp.key = params.key(i);
+        obj_temp.data = JSON.parse(params.getItem(params.key(i)));
+        data_tranform.push(obj_temp)
+      }
+    }
+    return data_tranform;
+  }
+  //after send data to server then delete old data
+  function delete_old_localStorage(params){
+    for (i = 0; i < params.length; i++) {
+      localStorage.removeItem(params[i]["key"]);
+    }
+  }
+  function send_data_to_server (){
+    var data_send_server = {};
+    var data_local_storage = tranform_data(localStorage);
+    if(getValueCookie("rada_tracking")){
+      data_send_server.client_id = getValueCookie("rada_tracking");
+    }else{
+      generate_client_id();
+      data_send_server.client_id = "Anonymous";
+    }
+    data_send_server.source = JSON.stringify(data_local_storage);
+    // data_send_server.time_send = new Date().getTime();
+    jQuery.ajax({
+      url: rada_info.url_api,
+      type: rada_info.method,
+      data: data_send_server,
+      success: function(response) {
+        delete_old_localStorage(data_local_storage);
+        push_data_to_lc("time_send",new Date().getTime());
+        //console.log('save data to server success');
+        //time_send_succes = Time.now
+        //save_time_now_to_local
+      }
+    });
+  }
+  function getValueCookie(name){
+    if(name === undefined){
+      return undefined;
+    }else{
+      var match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+      if (match) return match[2];
+    }
+  }
+  function generate_client_id(){
+    var check_cookie = getValueCookie("rada_tracking");
+    if(!check_cookie){
+      jQuery.ajax({
+        url: rada_info.request_cid,
+        type: "POST",
+        data: {action:"request_cid"},
+        success: function(response) {
+          var client_id = response.client_id;
+          Action_cookie.set_cookie(cookie_info.name,client_id,cookie_info.expires);
+        }
+      });
+    }
+  }
 
+  return {
+    generate_cid: generate_client_id,
+    build_data: build_data_for_track,
+    push_data: push_data_to_lc,
+    tranform_data: tranform_data,
+    delete_data: delete_old_localStorage,
+    send_data: send_data_to_server
+  }
+})();
 var Focus_tracker = (function() {
   var checks ={};
   var check = {};
@@ -21,7 +144,7 @@ var Focus_tracker = (function() {
                 checks[x] = true;
               }
             }
-          } if(selectors.length == 1) {
+          }if(selectors.length == 1){
             var b = selectors[0].getBoundingClientRect().top;
             if(b >= 0 && b <= window.innerHeight && !check[i]){
               callback(params[i]);
@@ -33,53 +156,44 @@ var Focus_tracker = (function() {
     });
   }
 })();
-
 var TagConfig  = {
-  sendConfig: {
-    loopInMilis: <%= Rails.env.development? ? 10000 : 30000 %>,
-    thresholds: [
-      { threshold: 0, interval: 40 * 1000 }, // loop 40s
-      { threshold: 600 * 1000, interval: 80 * 1000 },  // reach 10m: 80s
-      { threshold: 1200 * 1000, interval: 160 * 1000 },// reach 20m: 160s
-      { threshold: 2400 * 1000, interval: 320 * 1000 }, // reach 40m: 320s
-      { threshold: 4800 * 1000, interval: 640 * 1000 }, // reach 1h20m: 640s 
-      { threshold: 9600 * 1000, interval: 1280 * 1000 }, // reach 2h40m: 1280s
-      { threshold: 18000 * 1000, interval: -1 } // reach 5h: drop
-    ]
-  },
-  "SendIntervalInSecs": <%= Rails.env.development? ? 40 : 10 %>,
+  "SendIntervalInSecs": <%= Rails.env.development? ? 40 : 5 %>,
   "BeatIntervalInSecs": 5
 };
 
 var RadarTag = (function() {
-
-  var tracker = RadaTracking;
-  
   function debug_log(msg) {
     <% if Rails.env.development? %>
       console.log(msg);
     <% end %>
   }
-
   function handleViewPage() {
-    var data = tracker.build_data();
+    var data = RadaTracking.build_data();
     data["type_track"] = "page_view";
-    tracker.push_data(data["storage_key"],data);
+    RadaTracking.push_data(data["storage_key"],data);
+    // debug_log(data);
   }
-
-  function handleTimeSpent() {
-    var data = tracker.build_data();
+  function handleTimeSpent(){
+    var data = RadaTracking.build_data();
     data["type_track"] = "time_in_page";
     data["value_track"] = 0;
     const beatInterval = TagConfig.BeatIntervalInSecs;
-      setInterval(function() {
+      setInterval(function(){
       data["value_track"] += beatInterval;
-      tracker.push_data(data["storage_key"],data);
+      RadaTracking.push_data(data["storage_key"],data);
+      // debug_log(data["value_track"]);
     }, beatInterval * 1000);
   }
-
-  function handleClickExtend(params, event) {
-    var data = tracker.build_data();
+  //this function is not working
+  function handleClick(params, event) {
+    var data = RadaTracking.build_data();
+    data["type_track"] = "click_in_page";
+    data["value_track"] = params.selector;
+    data["extras"]["btn_name"] = event.target.textContent;
+    RadaTracking.push_data(data["storage_key"],data);
+  }
+  function handleClickExtend(params,event){
+    var data = RadaTracking.build_data();
     var obj_temp = params.selector;
     data["type_track"] = "click_in_page";
     data["value_track"] =  obj_temp.selector;
@@ -87,28 +201,37 @@ var RadarTag = (function() {
     if(Object.prototype.hasOwnProperty.call(obj_temp,'attr')){
       data["extras"]["other_value"] = event.target.getAttribute(obj_temp.attr);
     }
-    tracker.push_data(data["storage_key"],data);
+    RadaTracking.push_data(data["storage_key"],data);
+
   }
-  
   function handleFocus(params){
-    var data = tracker.build_data();
+    var data = RadaTracking.build_data();
     data["type_track"] = "focus_in_page";
     var callback = function(params){
       data["time_start"] = new Date().getTime();
       data["value_track"] = params;
-      tracker.push_data(data["storage_key"],data);
+      // debug_log(data);
+      RadaTracking.push_data(data["storage_key"],data);
     }
     Focus_tracker(params.selector,callback);
   }
-
   function triggerViewPage(){
     handleViewPage();
   }
-
   function triggerTimeSpent(){
     handleTimeSpent();
   }
+  //this function is not working
+  function triggerClick(params) {
+    try {
+      $(document).on("click", params.selector, function(event) {
+    	   params.handle(params, event);
+      })
+    } catch (e) {
+      debug_log("some thing when wrong,in triggerClick");
+    }
 
+  }
   function triggerClickExtend(params) {
     try {
       $(document).on("click", params.selector.selector, function(event) {
@@ -118,23 +241,28 @@ var RadarTag = (function() {
       debug_log("some thing when wrong,in triggerClickExtend")
     }
   }
-
   function triggerFocus(params) {
     try {
       params.handle(params);
-    } catch (e) {
+    }catch (e) {
       debug_log("some thing when wrong,in triggerFocus")
     }
   }
-
-  function bindClickExtend(selector) {
+//this function is not working
+  function bindClick(selector) {
+    var params = {};
+    params.selector = selector;
+    params.trigger = triggerClick;
+    params.handle = handleClick;
+    params.trigger(params);
+  }
+  function bindClickExtend(selector){
     var params = {};
     params.selector = selector;
     params.trigger = triggerClickExtend;
     params.handle = handleClickExtend;
     params.trigger(params);
   }
-
   function bindFocus(selector) {
     var params = {};
     params.selector = selector;
@@ -142,7 +270,6 @@ var RadarTag = (function() {
     params.handle = handleFocus;
     params.trigger(params);
   }
-
   function handleScroll(){
     window.tracker_scroll = window.ScrollTracker();
     window.tracker_scroll.on({
@@ -150,26 +277,45 @@ var RadarTag = (function() {
         every: [50]
       }
     }, function(evt) {
-      var data = tracker.build_data();
+      var data = RadaTracking.build_data();
       data["type_track"] = "scroll_track";
       data["value_track"] = evt.data.label;
       data["extras"] = window.tracker_scroll._show_info();
       data["extras"]["value_depth"] = evt.data.depth;
-      tracker.push_data(data["storage_key"],data);
+      RadaTracking.push_data(data["storage_key"],data);
+      // debug_log(data);
     });
-  }
 
+  }
   function triggerScroll(){
     handleScroll();
   }
-
+  function set_cookie_after_load(){
+    RadaTracking.generate_cid();
+  }
+  function set_current_time(){
+    return new Date().getTime();
+  }
   return {
     onReady: function() {
-      tracker.setup(TagConfig);
-
+      set_cookie_after_load();
       triggerViewPage();
       triggerTimeSpent();
       triggerScroll();
+      loopsend = setInterval(function(){
+        var time_send = localStorage.getItem("time_send");
+        var current_time = set_current_time();
+        if(time_send){
+          time_send = JSON.parse(time_send);
+          // console.log((current_time - time_send));
+          if ((current_time - time_send) >= (TagConfig.SendIntervalInSecs * 1000)){
+              RadaTracking.send_data();
+          }
+        }else{
+          RadaTracking.push_data("time_send",current_time);
+        }
+      }, TagConfig.SendIntervalInSecs * 250);
+      // <%= renderBindClicks(@tags) %>
       <%= renderBindClickExtend(@tags) %>
       <%= renderImport(@tags) %>
       <%= renderBindFocus(@tags) %>
@@ -180,5 +326,3 @@ var RadarTag = (function() {
 jQuery(document).ready(function($) {
   RadarTag.onReady();
 });
-
-<%= render partial: 'tagmanager/components/spymaster_wrapper' %>

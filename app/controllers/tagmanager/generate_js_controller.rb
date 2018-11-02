@@ -6,7 +6,7 @@ module Tagmanager
     def render_script
       # puts params[:product_tag]
       @tags = Tag.all
-      @app_name = params[:product_tag] || 'page_test'
+      @app_name = 'page_test'
       render template: 'tagmanager/tracking.js'
     end
 

@@ -11,8 +11,6 @@ module Api
     #     # render template: 'spymaster.js.erb'
     # end
 
-    TRACKING_SESSION_TIME_IN_MILLIS = 3600000
-
     def ping
       render json: {
         message: "Rada worked!"
@@ -20,27 +18,26 @@ module Api
     end
 
     def generation_clientID
-      code = rand_string
-      t = time_now_millis
+      code = (0...8).map { (65 + rand(26)).chr }.join
+      t = Time.new.to_i
       return client_id = code + t.to_s
     end
-
     def request_cid
       if params["action"] == "request_cid"
         cid = generation_clientID
         render :json => {
-          client_id: cid,
-          tracking_session: check_tracking_session
+          client_id: cid
         }
       end
     end
 
+
     def rada_track
       data = JSON.parse params[:source]
+      time_send = params[:time_send]
       # client_id = params[:client_id].blank? ? generation_clientID : params[:client_id]
       client_id =  params[:client_id]
       ip = params[:ip].blank? ? request.remote_ip : params[:ip]
-      tracking_session = params[:tracking_session];
       data.each do |d|
         rd = RadaTrack.new
         rd.client_user = d['data']['user']
@@ -57,39 +54,13 @@ module Api
         rd.behavior = d["data"]["type_track"]
         rd.value = d['data']['value_track']
         rd.start_time_on_web  = d['data']['time_start']
-        rd.category = d['data']['category']
-        rd.target = d['data']['target']
         rd.extras = d['data']['extras']
-        rd.tracking_session = tracking_session
+        # rd.time_send = time_send.to_i
         rd.save
       end
       render :json => {
-        client_id: client_id,
-        tracking_session: check_tracking_session
+        client_id: client_id
       }
     end
-
-    private
-    def check_tracking_session
-      tracking_session = params[:tracking_session]
-      if tracking_session.present? && tracking_session.is_a?(String) 
-        val = tracking_session.split('_')[1].to_i;
-        return tracking_session if time_now_millis - val < TRACKING_SESSION_TIME_IN_MILLIS
-      end
-      new_tracking_session
-    end
-
-    def new_tracking_session
-      "#{rand_string}_#{time_now_millis}"
-    end
-
-    def time_now_millis
-      (Time.now.to_f * 1000).to_i
-    end
-
-    def rand_string
-      (0...8).map { (65 + rand(26)).chr }.join
-    end
-
   end
 end
